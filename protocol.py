@@ -43,7 +43,7 @@ def new_message(message):
 def load(json_protocol):
     try:
         parsed_protocol = json.loads(json_protocol)
-        _type = parsed_protocol.pop("type")
+        _type = parsed_protocol["type"]
         return _type == "message", parsed_protocol
     except json.JSONDecodeError:
         raise ProtocolException("Non-JSON message detected")

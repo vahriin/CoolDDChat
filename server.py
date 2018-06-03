@@ -25,7 +25,14 @@ class ChatServer:
         self._server = self._loop.run_until_complete(
             asyncio.start_server(self.accept_connection, host=host, port=port)
         )
+
+    def start(self):
         self._loop.run_forever()
+
+    def stop(self):
+        self._server.close()
+        self._loop.run_until_complete(self._server.wait_closed())
+        self._loop.close()
 
     async def accept_connection(self, reader, writer):
         writer.write(protocol.new_status().encode("utf8"))
@@ -61,6 +68,8 @@ class ChatServer:
         while True:
             message_type, message = await client.read_message()
             if message_type == None: #connection is broken
+                print("User {} disconnected.".format(client.nick))
+                self._clients.pop(client.nick) # delete user from clients
                 return
             elif message_type: # message_type is "message"
                 self.message_handler(message, client)
@@ -69,7 +78,9 @@ class ChatServer:
 
     def message_handler(self, message, client):
         message_id = next(self._cycle)
-        self._messages[message_id] = 0
+        
+        self._messages[message_id] = {"clients_got": 0, "author": client.nick} 
+        
         message["messageId"] = message_id
         self.broadcast(message, client.nick)
 
@@ -80,10 +91,10 @@ class ChatServer:
                 self._clients[client_nick].send_message(message)
 
     def service_handler(self, message, client):
-        self._messages[message["messageId"]] += 1
-        if len(self._messages) <= self._messages[message["messageId"]]:
-            self._messages.pop(message["messageId"])
-            client.send_raw(protocol.new_status_message(message["messageId"]))
+        self._messages[message["messageId"]]["clients_got"] += 1
+        if len(self._messages) <= self._messages[message["messageId"]]["clients_got"]:
+            author_nick = self._messages.pop(message["messageId"])["author"]
+            self._clients[author_nick].send_raw(protocol.new_status(200))
 
         
 def new_parser():
@@ -95,3 +106,12 @@ if __name__ == '__main__':
     parser = new_parser()
     namespace = parser.parse_args(sys.argv[1:])
     server = ChatServer('', namespace.port)
+    try:
+        server.start()
+    except KeyboardInterrupt:
+        server.stop()
+        print()
+    
+        
+
+

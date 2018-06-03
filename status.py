@@ -7,7 +7,7 @@ def new(error=None):
         return json.dumps({"status": False, "error": error})
 
 def check_error(json_status):
-    parsed_status = json.loads(status)
+    parsed_status = json.loads(json_status)
     if parsed_status["status"]:
         return None
     else:

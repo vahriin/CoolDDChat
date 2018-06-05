@@ -1,8 +1,9 @@
 import asyncio
 import json
-from itertools import cycle
 import argparse
 import sys
+
+from itertools import cycle
 
 import user
 import protocol
@@ -32,7 +33,7 @@ class ChatServer:
     def stop(self):
         self._server.close()
         self._loop.run_until_complete(self._server.wait_closed())
-        self._loop.close()
+        self._loop.stop()
 
     async def accept_connection(self, reader, writer):
         writer.write(protocol.new_status().encode("utf8"))
@@ -79,7 +80,7 @@ class ChatServer:
     def message_handler(self, message, client):
         message_id = next(self._cycle)
         
-        self._messages[message_id] = {"clients_got": 0, "author": client.nick} 
+        self._messages[message_id] = {"clients_got": 1, "author": client.nick} 
         
         message["messageId"] = message_id
         self.broadcast(message, client.nick)
@@ -92,7 +93,7 @@ class ChatServer:
 
     def service_handler(self, message, client):
         self._messages[message["messageId"]]["clients_got"] += 1
-        if len(self._messages) <= self._messages[message["messageId"]]["clients_got"]:
+        if len(self._clients) <= self._messages[message["messageId"]]["clients_got"]:
             author_nick = self._messages.pop(message["messageId"])["author"]
             self._clients[author_nick].send_raw(protocol.new_status(200))
 

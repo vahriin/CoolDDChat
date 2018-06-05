@@ -2,6 +2,7 @@ import asyncio
 import json
 import argparse
 import sys
+import logging
 
 from itertools import cycle
 
@@ -57,7 +58,7 @@ class ChatServer:
                 writer.write(b'\n')
         except KeyError:
             self._clients[client.nick] = client
-            print("User {} connected.".format(str(client.nick)))
+            logging.info("User {} connected.".format(str(client.nick)))
             writer.write(protocol.new_status().encode("utf8"))
             writer.write(b'\n')
             await self.client_handler(client)
@@ -72,7 +73,7 @@ class ChatServer:
         while True:
             message_type, message = await client.read_message()
             if message_type == None: #connection is broken
-                print("User {} disconnected.".format(client.nick))
+                logging.info("User {} disconnected.".format(client.nick))
                 self._clients.pop(client.nick) # delete user from clients
                 return
             elif message_type: # message_type is "message"
@@ -89,7 +90,7 @@ class ChatServer:
         self.broadcast(message, client.nick)
 
     def broadcast(self, message, author_nick):
-        print("{}: {}".format(author_nick, message["message"]))
+        logging.info("User {} said: {}".format(author_nick, message["message"]))
         for client_nick in self._clients:
             if client_nick != author_nick:
                 self._clients[client_nick].send_message(message)
@@ -109,6 +110,9 @@ def new_parser():
 if __name__ == '__main__':
     parser = new_parser()
     namespace = parser.parse_args(sys.argv[1:])
+
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+
     server = ChatServer('', namespace.port)
     try:
         server.start()

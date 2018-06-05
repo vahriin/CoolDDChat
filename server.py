@@ -36,13 +36,16 @@ class ChatServer:
         self._loop.stop()
 
     async def accept_connection(self, reader, writer):
-        writer.write(protocol.new_status().encode("utf8"))
-        writer.write(b'\n')
         try:
-            await self.register_client(reader, writer)
-        except protocol.ProtocolException as pe:
-            writer.write(protocol.new_status(418, str(pe)).encode("utf8"))
+            writer.write(protocol.new_status().encode("utf8"))
             writer.write(b'\n')
+            try:
+                await self.register_client(reader, writer)
+            except protocol.ProtocolException as pe:
+                writer.write(protocol.new_status(418, str(pe)).encode("utf8"))
+                writer.write(b'\n')
+        except BrokenPipeError:
+            return
 
     async def register_client(self, reader, writer):
         client = b""

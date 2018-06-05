@@ -25,7 +25,10 @@ class Client:
             self._loop.run_until_complete(self._loop.create_task(self.connect(host, port)))
             self._loop.run_forever()
         except OSError:
-            print("Can not connect to server")
+            print("Error: Cannot connect to server.")
+            exit()
+        except protocol.ProtocolException:
+            print("Error: Connection broken")
             exit()
         except KeyboardInterrupt:
             self._loop.stop()
@@ -52,7 +55,7 @@ class Client:
             error = protocol.check_error(response)
             if error != None:
                 print(protocol.check_error(response))
-        print("Welcome to chat, {}!".format(self._nick))
+        print("Welcome to chat, {}!\n".format(self._nick))
         handle_stdin_task = self._loop.create_task(self.handle_stdin())
         handle_message_task = self._loop.create_task(self.handle_message())
         
@@ -61,8 +64,6 @@ class Client:
 
     async def handle_stdin(self):
         while True:
-            print("You ({}): ".format(self._nick), end='')
-            sys.stdout.flush()
             message = await self.ainput()
             self._writer.write(protocol.new_message(message).encode("utf8"))
             self._writer.write(b'\n')
@@ -70,7 +71,11 @@ class Client:
             
     async def handle_message(self):
         while True:
-            message_type, message = protocol.load((await self._reader.readline()).decode("utf8"))
+            try:
+                message_type, message = protocol.load((await self._reader.readline()).decode("utf8"))
+            except protocol.ProtocolException:
+                print("Connection broken. Press Ctrl-C to exit")
+                return
             if message_type == None: # connection is break
                 return
             elif message_type: # message_type is "message"
@@ -79,14 +84,14 @@ class Client:
                 self.service_handler(message)
     
     def message_handler(self, message):
-        print("{}: {}".format(message["nick"], message["message"]))
+        print("{}: {}\n".format(message["nick"], message["message"]))
         sys.stdout.flush()
         self._writer.write(protocol.new_status_message(message["messageId"]).encode("utf8"))
         self._writer.write(b'\n')
 
     def service_handler(self, message):
         if protocol.check_error(message) == None:
-            print("delievered")
+            print("Message delievered\n")
             
 
 def new_parser():

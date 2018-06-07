@@ -9,8 +9,8 @@ import protocol
 async def create_stdin_reader():
     loop = asyncio.get_event_loop()
     reader = asyncio.StreamReader(loop=loop)
-    protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
-    await loop.connect_read_pipe(lambda: protocol, sys.stdin)
+    async_protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
+    await loop.connect_read_pipe(lambda: async_protocol, sys.stdin)
     return reader
 
 class Client:
@@ -48,8 +48,9 @@ class Client:
             print("Enter your nick: ", end='')
             sys.stdout.flush()
             self._nick = await self.ainput()
-            self._writer.write(protocol.new_service({"nick": self._nick}).encode("utf8"))
+            self._writer.write(protocol.dump(protocol.form_service({"nick": self._nick})).encode("utf8"))
             self._writer.write(b'\n')
+            
             nick_response = await self._reader.readline()
             _type, response = protocol.load(nick_response.decode("utf8"))
             error = protocol.check_error(response)
@@ -65,7 +66,7 @@ class Client:
     async def handle_stdin(self):
         while True:
             message = await self.ainput()
-            self._writer.write(protocol.new_message(message).encode("utf8"))
+            self._writer.write(protocol.dump(protocol.new_message(message)).encode("utf8"))
             self._writer.write(b'\n')
             self._non_deliver_messages += 1
             
@@ -86,7 +87,7 @@ class Client:
     def message_handler(self, message):
         print("{}: {}\n".format(message["nick"], message["message"]))
         sys.stdout.flush()
-        self._writer.write(protocol.new_status_message(message["messageId"]).encode("utf8"))
+        self._writer.write(protocol.new_status(message_id=message["messageId"]).encode("utf8"))
         self._writer.write(b'\n')
 
     def service_handler(self, message):

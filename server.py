@@ -37,12 +37,12 @@ class ChatServer:
 
     async def accept_connection(self, reader, writer):
         try:
-            writer.write(protocol.new_status().encode("utf8"))
+            writer.write(protocol.dump(protocol.new_status()).encode("utf8"))
             writer.write(b'\n')
             try:
                 await self.register_client(reader, writer)
             except protocol.ProtocolException as pe:
-                writer.write(protocol.new_status(418, str(pe)).encode("utf8"))
+                writer.write(protocol.dump(protocol.new_status(418, str(pe))).encode("utf8"))
                 writer.write(b'\n')
         except BrokenPipeError:
             return
@@ -54,13 +54,13 @@ class ChatServer:
                 # ProtocolException will be raised if client disconnect during this
                 client = await self.get_client(reader, writer)  
                 self._clients[client.nick] # check this nick in clients dict
-                writer.write(protocol.new_status(409).encode("utf8"))
+                writer.write(protocol.dump(protocol.new_status(409)).encode("utf8"))
                 writer.write(b'\n')
         except KeyError:
             self._clients[client.nick] = client
             logging.info("User {} connected.".format(client.nick))
             # TODO: add clients list broadcast
-            writer.write(protocol.new_status().encode("utf8"))
+            writer.write(protocol.dump(protocol.new_status()).encode("utf8"))
             writer.write(b'\n')
             await self.client_handler(client)
 
@@ -93,8 +93,7 @@ class ChatServer:
         self.broadcast(message)
 
     def broadcast(self, message): # message should contain "nick" field
-        if message["type"] == "message":
-            logging.info("User {} said: {}".format(message["nick"], message["message"]))
+        logging.info("User {} said: {}".format(message["nick"], message["message"]))
         for client_nick in self._clients:
             if client_nick != message["nick"]:
                 self._clients[client_nick].send_message(message)

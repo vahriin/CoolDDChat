@@ -13,7 +13,7 @@ class ProtocolException(Exception):
     def __init__(self, message):
         super().__init__(message, None)
 
-def _form_service(attr={}):
+def form_service(attr={}):
     service_message = {"type": "service"}
     service_message.update(attr)
     return service_message
@@ -23,7 +23,7 @@ def _form_service(attr={}):
 # if message id not passed to function, result will not 
 # contain "messageId" field
 def new_status(code=200, ext_inf=None, message_id=None):
-    status = _form_service({"status": code})
+    status = form_service({"status": code})
     if code != 200:
         status["error_code"] = code
         if ext_inf != None:
@@ -34,8 +34,10 @@ def new_status(code=200, ext_inf=None, message_id=None):
     if message_id != None:
         status["messageId"] = message_id
 
+    return status
+
 # form message dict from string
-def _form_message(attr={}):
+def form_message(attr={}):
     message = {"type": "message"}
     message.update(attr)
     return message
@@ -45,7 +47,7 @@ def _form_message(attr={}):
 def new_message(message):
     if type(message) == str:
         message = {"message": message}
-    return _form_message(message)
+    return form_message(message)
 
 
 def dump(message):

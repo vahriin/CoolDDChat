@@ -1,5 +1,4 @@
 import asyncio
-import json
 import argparse
 import sys
 import logging
@@ -52,13 +51,15 @@ class ChatServer:
         client = b""
         try:
             while True:
-                client = await self.get_client(reader, writer)
+                # ProtocolException will be raised if client disconnect during this
+                client = await self.get_client(reader, writer)  
                 self._clients[client.nick] # check this nick in clients dict
                 writer.write(protocol.new_status(409).encode("utf8"))
                 writer.write(b'\n')
         except KeyError:
             self._clients[client.nick] = client
-            logging.info("User {} connected.".format(str(client.nick)))
+            logging.info("User {} connected.".format(client.nick))
+            # TODO: add clients list broadcast
             writer.write(protocol.new_status().encode("utf8"))
             writer.write(b'\n')
             await self.client_handler(client)
@@ -66,6 +67,7 @@ class ChatServer:
     async def get_client(self, reader, writer):
         user_data = (await reader.readline()).decode("utf8")
         _type, data = protocol.load(user_data)
+        # TODO: add check nick correctness here
         client = user.User(data, reader, writer)
         return client
 
@@ -75,6 +77,7 @@ class ChatServer:
             if message_type == None: #connection is broken
                 logging.info("User {} disconnected.".format(client.nick))
                 self._clients.pop(client.nick) # delete user from clients
+                # TODO: add list of clients broadcast
                 return
             elif message_type: # message_type is "message"
                 self.message_handler(message, client)
@@ -87,19 +90,20 @@ class ChatServer:
         self._messages[message_id] = {"clients_got": 1, "author": client.nick} 
         
         message["messageId"] = message_id
-        self.broadcast(message, client.nick)
+        self.broadcast(message)
 
-    def broadcast(self, message, author_nick):
-        logging.info("User {} said: {}".format(author_nick, message["message"]))
+    def broadcast(self, message): # message should contain "nick" field
+        if message["type"] == "message":
+            logging.info("User {} said: {}".format(message["nick"], message["message"]))
         for client_nick in self._clients:
-            if client_nick != author_nick:
+            if client_nick != message["nick"]:
                 self._clients[client_nick].send_message(message)
 
     def service_handler(self, message, client):
         self._messages[message["messageId"]]["clients_got"] += 1
         if len(self._clients) <= self._messages[message["messageId"]]["clients_got"]:
             author_nick = self._messages.pop(message["messageId"])["author"]
-            self._clients[author_nick].send_raw(protocol.new_status(200))
+            self._clients[author_nick].send_service(protocol.new_status())
 
         
 def new_parser():

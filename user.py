@@ -1,5 +1,4 @@
 import asyncio
-import json
 
 import protocol
 
@@ -10,14 +9,19 @@ class User:
         self._writer = writer # asynchronous stream writer
 
     # send raw data (e.g. prepared json string) to self._writer.
-    def send_raw(self, raw_data):
+    def _send_raw(self, raw_data):
         self._writer.write(raw_data.encode("utf8"))
         self._writer.write(b'\n')    
     
-    # message dict to json and send to client
+    # message (dict or str) to json and send to client
     def send_message(self, message):
-        json_message = protocol.new_message(message)
-        self.send_raw(json_message)
+        json_message = protocol.dump(protocol.new_message(message))
+        self._send_raw(json_message)
+
+    # service message dict to json and send
+    def send_service(self, service):
+        json_service = protocol.dump(service)
+        self._send_raw(json_service)
 
     # returns bool type of message (true if message has type "message" and false if message has type "service")
     # and the message by itself

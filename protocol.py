@@ -13,42 +13,43 @@ class ProtocolException(Exception):
     def __init__(self, message):
         super().__init__(message, None)
 
-def new_service(attr): #attr must be dict
-    attr["type"] = "service"
-    return json.dumps(attr)
+def _form_service(attr={}):
+    service_message = {"type": "service"}
+    service_message.update(attr)
+    return service_message
 
-# form status
-def new_status(code=200, ext_inf=None):
-    if code == 200:
-        return json.dumps({"type": "service", "status": code})
-    elif code == 418:
-        return json.dumps({"type": "service", "status": code, "error": "{}: {}".format(STATUSES[code], ext_inf)})
-    else:
-        return json.dumps({"type": "service", "status": code, "error": "{}".format(STATUSES[code])})
+# form status. ext_inf must be str with error info. 
+# message_id must be id of delievered message.
+# if message id not passed to function, result will not 
+# contain "messageId" field
+def new_status(code=200, ext_inf=None, message_id=None):
+    status = _form_service({"status": code})
+    if code != 200:
+        status["error_code"] = code
+        if ext_inf != None:
+            status["error_info"] = ext_inf
+        else:
+            status["error_info"] = STATUSES[code]
 
-# form status of message delivery
-def new_status_message(message_id, code=200, ext_inf=None):
-    if code == 200:
-        return json.dumps({"type": "service", "status": code, "messageId" : message_id})
-    elif code == 418:
-        return json.dumps({"type": "service", "status": code, "messageId": message_id,
-             "error": "{}: {}".format(STATUSES[code], ext_inf)})
-    else:
-        return json.dumps({"type": "service", "status": code, "messageId": message_id,
-             "error": "{}".format(STATUSES[code])})
+    if message_id != None:
+        status["messageId"] = message_id
+
+# form message dict from string
+def _form_message(attr={}):
+    message = {"type": "message"}
+    message.update(attr)
+    return message
 
 # the "message" arg must be dict (e.g. {"type":"message", "message": "bla-bla"})
 # of string that contains text of message (e.g. "bla-bla")
-def new_message(message): 
+def new_message(message):
     if type(message) == str:
-        message = _form_message(message)
-    message["type"] = "message"
-    return json.dumps(message)
-    
-# form message dict from string
-def _form_message(message):
-    return {"message": message}
+        message = {"message": message}
+    return _form_message(message)
 
+
+def dump(message):
+    return json.dumps(message)
 
 def load(json_protocol):
     try:

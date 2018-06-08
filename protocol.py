@@ -18,6 +18,11 @@ def form_service(attr={}):
     service_message.update(attr)
     return service_message
 
+def update_service(service, attr):
+    service.update(attr)
+    return service
+
+
 # form status. ext_inf must be str with error info. 
 # message_id must be id of delievered message.
 # if message id not passed to function, result will not 

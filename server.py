@@ -2,6 +2,7 @@ import asyncio
 import argparse
 import sys
 import logging
+import re
 
 from itertools import cycle
 
@@ -52,7 +53,14 @@ class ChatServer:
         try:
             while True:
                 # ProtocolException will be raised if client disconnect during this
-                client = await self.get_client(reader, writer)  
+                client = await self.get_client(reader, writer)
+                # check nick
+                if client == None:
+                    writer.write(protocol.dump(
+                            protocol.new_status(410, "Nick should contains only letters or digits")
+                        ).encode("utf8"))
+                    writer.write(b'\n')
+                    continue 
                 self._clients[client.nick] # check this nick in clients dict
                 writer.write(protocol.dump(protocol.new_status(409)).encode("utf8"))
                 writer.write(b'\n')
@@ -68,8 +76,14 @@ class ChatServer:
     async def get_client(self, reader, writer):
         user_data = (await reader.readline()).decode("utf8")
         _type, data = protocol.load(user_data)
-        # TODO: add check nick correctness here
-        client = user.User(data, reader, writer)
+        try:
+            if not re.match(r"^[A-Za-z0-9]+$", data["nick"]):
+                return None
+            client = user.User(data, reader, writer)
+        except KeyError:
+            writer.write(protocol.dump(
+                protocol.new_status(418, 'Registration request should contains "nick" field')
+            ).encode("utf8"))
         return client
 
     async def client_handler(self, client):

@@ -57,11 +57,12 @@ class ChatServer:
                 writer.write(protocol.dump(protocol.new_status(409)).encode("utf8"))
                 writer.write(b'\n')
         except KeyError:
-            self._clients[client.nick] = client
-            logging.info("User {} connected.".format(client.nick))
-            # TODO: add clients list broadcast
             writer.write(protocol.dump(protocol.new_status()).encode("utf8"))
             writer.write(b'\n')
+
+            self._clients[client.nick] = client
+            logging.info("User {} connected.".format(client.nick))
+            self.broadcast_clients()
             await self.client_handler(client)
 
     async def get_client(self, reader, writer):
@@ -77,7 +78,7 @@ class ChatServer:
             if message_type == None: #connection is broken
                 logging.info("User {} disconnected.".format(client.nick))
                 self._clients.pop(client.nick) # delete user from clients
-                # TODO: add list of clients broadcast
+                self.broadcast_clients()
                 return
             elif message_type: # message_type is "message"
                 self.message_handler(message, client)
@@ -98,16 +99,25 @@ class ChatServer:
             if client_nick != message["nick"]:
                 self._clients[client_nick].send_message(message)
 
+    def broadcast_clients(self):
+        for client_nick in self._clients:
+            self._clients[client_nick].send_service(protocol.form_service({"users": list(self._clients.keys())}))
+
     def service_handler(self, message, client):
         self._messages[message["messageId"]]["clients_got"] += 1
         if len(self._clients) <= self._messages[message["messageId"]]["clients_got"]:
             author_nick = self._messages.pop(message["messageId"])["author"]
-            self._clients[author_nick].send_service(protocol.new_status())
+            status = protocol.new_status()
+            status["users"] = []
+            for user in self._clients.keys():
+                if user != client.nick:
+                    status["users"].append(user)
+            self._clients[author_nick].send_service(status)
 
         
 def new_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--port", default='59503')
+    parser.add_argument("-p", "--port", default="59503")
     return parser
 
 if __name__ == '__main__':

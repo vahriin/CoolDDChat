@@ -87,13 +87,17 @@ class Client:
     def message_handler(self, message):
         print("{}: {}\n".format(message["nick"], message["message"]))
         sys.stdout.flush()
-        self._writer.write(protocol.new_status(message_id=message["messageId"]).encode("utf8"))
+        self._writer.write(protocol.dump(protocol.new_status(message_id=message["messageId"])).encode("utf8"))
         self._writer.write(b'\n')
 
-    def service_handler(self, message):
-        if protocol.check_error(message) == None:
-            print("Message delievered\n")
-            
+    def service_handler(self, service):
+        if service.get("status") == None: # got user list (somebody connect or disconnect)
+            # this feature can be extended for displaying message like 
+            # "<user> (connected to)/(disconnected from) chat"
+            print("Active clients: {}".format(",".join(service["users"])))
+        elif protocol.check_error(service) == None: # got message status
+            print("Message delievered to: {}".format(",".join(service["users"])))
+
 
 def new_parser():
     parser = argparse.ArgumentParser()

@@ -4,6 +4,7 @@ STATUSES = {
     200: "OK",
     400: "Bad requests",
     409: "Nick already exists",
+    410: "Wrong nick",
     403: "Forbidden",
     418: "Unclassified error"
     
@@ -71,4 +72,4 @@ def load(json_protocol):
 def check_error(parsed_protocol):
     if parsed_protocol["status"] // 100 == 2:
         return None
-    return parsed_protocol["error"]
+    return parsed_protocol["error_info"]
